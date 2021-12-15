@@ -1,9 +1,16 @@
 // Website you intended to retrieve for users.
-const upstream = 'https://nhentai.net'
+const upstream = 'https://nhentai.net';
 
-const matchKey = 'nhentai'
+const matchKey = 'nhentai';
 
-const proxyPart = 'nh_p_path/'
+const proxyPart = 'nh_p_path/';
+
+const joinJS = '<script>' +
+' var divObj=document.createElement("div"); ' +
+' divObj.innerHTML="防封导航页 https://nfff.pages.dev";' +
+' var first=document.body.firstChild;' +
+' document.body.insertBefore(divObj,first);' + 
+' </script>';
 
 // Custom pathname for the upstream website.
 const upstream_path = '/'
@@ -41,8 +48,19 @@ async function fetchAndApply(request) {
     let request_headers = request.headers;
     let new_request_headers = new Headers(request_headers);
 
+    let referURl = '';
+    let origin_referer = new_request_headers.get('Referer');
+    if (origin_referer) {
+        let refererUrlPart = origin_referer.split(proxyPart);
+        if (refererUrlPart.length === 2) {
+            referURl = new URL(decodeURIComponent(reqUrlPart[1])).href;
+        }
+    }
+
     new_request_headers.set('Host', url.host);
     new_request_headers.set('Referer', "");
+
+    console.log(new_request_headers);
 
     let original_response = await fetch(url.href, {
         method: method,
@@ -89,7 +107,7 @@ async function fetchAndApply(request) {
 
 
 async function replace_response_text(response, upstream_domain, host_name) {
-    let text = await response.text()
+    let text = await response.text();
 
     function convert(match) {
         if (match.includes(matchKey)) {
@@ -100,6 +118,9 @@ async function replace_response_text(response, upstream_domain, host_name) {
 
     let re = new RegExp('(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]', 'g')
     text = text.replace(re, convert);
+
+    let alert = new RegExp('</body>', 'g');
+    text = text.replace(alert, joinJS + '</body>');
 
     return text;
 }
